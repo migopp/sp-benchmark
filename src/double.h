@@ -20,8 +20,9 @@
 namespace impl {
 // intermediate structure
 template <typename T> struct IS {
+  // not an ARC
+  uint32_t count;
   T *ptr;
-  std::atomic<uint32_t> count;
 
   IS() : count(0) { ptr = nullptr; }
   IS(T *p) : count(p == nullptr ? 0 : 1) { ptr = p; }
@@ -32,7 +33,7 @@ private:
   IS<T> *is;
 
   void point_away() {
-    if (is->count.fetch_sub(1) == 1) { // = 0
+    if (--(is->count) == 0) {
       if (is->ptr != nullptr)
         delete is->ptr;
       delete is; // last one
@@ -45,14 +46,14 @@ public:
   ~Double() { point_away(); }
 
   Double(const Double<T> &src) {
-    src.is->count.fetch_add(1);
+    src.is->count++;
     is = src.is;
   }
 
   Double(T *p) { is = new IS<T>(p); }
 
   Double<T> &operator=(const Double<T> &rhs) {
-    rhs.is->count.fetch_add(1);
+    rhs.is->count++;
     point_away();
     is = rhs.is();
   }
