@@ -6,8 +6,12 @@
 using namespace std;
 using namespace impl;
 
+// COPY DESTRUCTION
+//
+// Not the most useful workload, but gives a sense of how expensive
+// copies are for a given approach.
 template <template <typename> class P>
-int simple_destruction(std::ofstream *log) {
+int copy_destruction(std::ofstream *log) {
   struct Thing {
     int thingy;
     ofstream *log;
@@ -20,12 +24,11 @@ int simple_destruction(std::ofstream *log) {
 
   for (int i = 0; i < 10000; ++i) {
     // make a thing
-    P<Thing> thing_one = new Thing(27, log);
+    P<Thing> thing_one = P<Thing>::make(27, log);
     {
       P<Thing> thing_two = thing_one; // copy it
-      thing_one = nullptr;            // destruct original
-    } // Thing::~Thing()
-  }
+    }
+  } // Thing::~Thing()
 
   return 27;
 };

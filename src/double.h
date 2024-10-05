@@ -1,70 +1,95 @@
-/*
-    Double Indirection
-
-    Attempts to save space by halving the size
-    of each strong pointer via structure to house
-    all pertinent data.
-
-    Stores:
-        - ptr
-        - reference counts
-
-    Makes strong pointers more space efficient at
-    the cost of a double indirection every deref.
- */
-
 #pragma once
 
-#include <atomic>
+#include <cstdlib>
+#include <iostream>
 
 namespace impl {
-// intermediate structure
-template <typename T> struct IS {
-  // not an ARC
-  uint32_t count;
-  T *ptr;
-
-  IS() : count(0) { ptr = nullptr; }
-  IS(T *p) : count(p == nullptr ? 0 : 1) { ptr = p; }
-};
-
+// DOUBLE INDIRECTION APPROACH
+//
+// Stores a single `uintptr_t` within each RC, using less memory at the
+// detriment of having multiple layers of indirection.
+//
+// This should make dereferencing performance significantly worse,
+// as chained dependent loads need to be performed.
 template <typename T> class Double {
 private:
-  IS<T> *is;
+  struct IS {
+    // THREAD SAFETY: These are not thread safe, for the sake of the experiment,
+    //                we won't use atomic reference counting.
+    uint32_t count;
+    T *ptr;
 
+    IS() : count(0) { ptr = nullptr; }
+    IS(T *p) : count(p == nullptr ? 0 : 1) { ptr = p; }
+  };
+
+  IS *is;
+
+  // Moves strong RC away from current resource, for destruction or so that
+  // it can point to a new resource
   void point_away() {
     if (--(is->count) == 0) {
       if (is->ptr != nullptr)
-        delete is->ptr;
-      delete is; // last one
+        delete is->ptr; // free resource if we need to
+      delete is;        // nothing else will use this counter
     }
   }
 
+  // This is strange to have as public...
+  template <typename... Args> Double(Args... args) {
+    is = new IS();
+    is->count = 1;
+    is->ptr = new T(args...);
+  }
+
 public:
-  Double() { is = new IS<T>(); }
+  // DO NOT CALL THIS
+  Double() {
+    std::cerr << "DOUBLE DEFAULT CONSTRUCTOR CALLED" << std::endl;
+    exit(1);
+  }
 
   ~Double() { point_away(); }
 
+  // ```
+  // Double<Thing> my_thing = Double<Thing>::make(27); -> count = 1
+  // Double<Thing> copy{my_thing}; -> count = 2
+  // assert(my_thing.operator->() == copy.operator->()) -> true
+  // ```
   Double(const Double<T> &src) {
     src.is->count++;
     is = src.is;
   }
 
-  Double(T *p) { is = new IS<T>(p); }
-
+  // ```
+  // Double<Thing> my_thing = Double<Thing>::make(27); -> count = 1
+  // Double<Thing> copy = my_thing; -> count = 2
+  // assert(my_thing.operator->() == copy.operator->()) -> true
+  // ```
   Double<T> &operator=(const Double<T> &rhs) {
     rhs.is->count++;
     point_away();
     is = rhs.is();
   }
 
-  Double<T> &operator=(T *p) {
-    point_away();
-    is = new IS<T>(p);
+  // ```
+  // Double<int> my_int = Double<Thing>::make(27);
+  // cout << *my_thing << "\n"; -> 27
+  // ```
+  T operator*() { return *is->ptr; }
 
-    return *this;
-  }
-
+  // ```
+  // Double<Thing> my_thing = Double<Thing>::make(27);
+  // cout << my_thing->get_number() << "\n"; -> 27
+  // ```
   T *operator->() { return is->ptr; }
+
+  // ```
+  // Double<T> my_thing = Double<Thing>::make(27);
+  // assert(my_thing.operator->() == nullptr) -> true
+  // ```
+  template <typename... Args> static Double<T> make(Args... args) {
+    return Double(args...);
+  }
 };
 } // namespace impl
