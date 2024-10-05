@@ -14,10 +14,12 @@ namespace impl {
 template <typename T> class Double {
 private:
   struct IS {
+    // Put this first for alignment
+    T *ptr;
+
     // THREAD SAFETY: These are not thread safe, for the sake of the experiment,
     //                we won't use atomic reference counting.
     uint32_t count;
-    T *ptr;
 
     IS() : count(0) { ptr = nullptr; }
     IS(T *p) : count(p == nullptr ? 0 : 1) { ptr = p; }

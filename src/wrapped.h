@@ -4,16 +4,23 @@
 #include <iostream>
 
 namespace impl {
-// WRAPPED APPROACH
+// WRAPPED SINGLE INDIRECTION APPROACH
 //
-// MORE DESC HERE :)
+// An attempt to reap the memory benefit of the double indirection
+// approach with the speed benefit of the single indirection approach.
+//
+// This approach is only really worth it if only strong RCs are supported,
+// because weak RCs will hold the resource space hostage, even if there are
+// no strong references left.
 template <typename T> class Wrapped {
 private:
   struct HA {
+    // Put this first for alignment
+    T thing;
+
     // THREAD SAFETY: These are not thread safe, for the sake of the experiment,
     //                we won't use atomic reference counting.
     uint32_t count;
-    T thing;
 
     // Since this is internal, it shouldn't be called.
     // But we add the fail condition just in case.
@@ -23,11 +30,10 @@ private:
     }
 
     template <typename... Args>
-    HA(uint32_t c, Args... args) : count(c), thing(args...) {}
+    HA(uint32_t c, Args... args) : thing(args...), count(c) {}
   };
 
   HA *ha;
-  T *ptr;
 
   // Moves strong RC away from current resource, for destruction or so that
   // it can point to a new resource
@@ -37,10 +43,7 @@ private:
   }
 
   // This is strange to have as public...
-  template <typename... Args> Wrapped(Args... args) {
-    ha = new HA(1, args...);
-    ptr = &ha->thing; // for fast access
-  }
+  template <typename... Args> Wrapped(Args... args) { ha = new HA(1, args...); }
 
 public:
   // DO NOT CALL THIS
@@ -59,7 +62,6 @@ public:
   Wrapped(const Wrapped<T> &src) {
     src.ha->count++;
     ha = src.ha;
-    ptr = src.ptr;
   }
 
   // ```
@@ -71,7 +73,6 @@ public:
     rhs.ha->count++;
     point_away();
     ha = rhs.ha;
-    ptr = rhs.ptr;
 
     return *this;
   }
@@ -80,13 +81,13 @@ public:
   // Wrapped<int> my_int = Wrapped<Thing>::make(27);
   // cout << *my_thing << "\n"; -> 27
   // ```
-  T operator*() { return *ptr; }
+  T operator*() { return *ha; }
 
   // ```
   // Wrapped<Thing> my_thing = Wrapped<Thing>::make(27);
   // cout << my_thing->get_number() << "\n"; -> 27
   // ```
-  T *operator->() { return ptr; }
+  T *operator->() { return ha; }
 
   // ```
   // Wrapped<T> my_thing = Wrapped<Thing>::make(27);
