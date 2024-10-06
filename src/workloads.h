@@ -13,7 +13,7 @@ using namespace impl;
 // copies are for a given approach.
 template <template <typename> class P>
 void copy_destruction(std::ofstream *log) {
-  constexpr uint64_t NUM_DELETIONS = 2ULL << 18;
+  constexpr uint64_t NUM_DELETIONS = 2ULL << 24;
 
   struct Thing {
     int thingy;
