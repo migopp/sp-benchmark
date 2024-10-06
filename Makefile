@@ -1,5 +1,5 @@
 CC = g++
-CC_FLAGS = -std=c++20 -Wall
+CC_FLAGS = -std=c++20 -O3 -Wall -g
 SRC_DIR = src
 BUILD_DIR = build
 RES_DIR = res

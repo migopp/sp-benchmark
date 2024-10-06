@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cassert>
 #include <cstdlib>
 #include <iostream>
 
@@ -22,15 +23,8 @@ private:
     //                we won't use atomic reference counting.
     uint32_t count;
 
-    // Since this is internal, it shouldn't be called.
-    // But we add the fail condition just in case.
-    HA() {
-      std::cerr << "HA DEFAULT CONSTRUCTOR CALLED" << std::endl;
-      exit(1);
-    }
-
-    template <typename... Args>
-    HA(uint32_t c, Args... args) : thing(args...), count(c) {}
+    HA() : thing(), count(1) {}
+    template <typename... Args> HA(Args... args) : thing(args...), count(1) {}
   };
 
   HA *ha;
@@ -38,38 +32,48 @@ private:
   // Moves strong RC away from current resource, for destruction or so that
   // it can point to a new resource
   void point_away() {
+    assert(ha != nullptr);
     if (--(ha->count) == 0)
       delete ha; // nothing will use this counter
   }
 
   // This is strange to have as public...
-  template <typename... Args> Wrapped(Args... args) { ha = new HA(1, args...); }
+  template <typename... Args> Wrapped(Args... args) { ha = new HA(args...); }
 
 public:
-  // DO NOT CALL THIS
-  Wrapped() {
-    std::cerr << "WRAPPED DEFAULT CONSTRUCTOR CALLED" << std::endl;
-    exit(1);
-  }
+  // Calls default constructor for T. 1, 2 are equivalent.
+  //
+  // 1:
+  // ```
+  // Wrapped<Thing> my_thing{};
+  // ```
+  //
+  // 2:
+  // ```
+  // Wrapped<Thing> my_thing = Wrapped<Thing>::make();
+  // ```
+  Wrapped() { ha = new HA(); }
 
   ~Wrapped() { point_away(); }
 
   // ```
-  // Wrapped<Thing> my_thing = Wrapped<Thing>::make(27); -> count = 1
-  // Wrapped<Thing> copy{my_thing}; -> count = 2
-  // assert(my_thing.operator->() == copy.operator->()) -> true
+  // Wrapped<Thing> my_thing = Wrapped<Thing>::make(27); // -> count = 1
+  // Wrapped<Thing> copy{my_thing}; // -> count = 2
+  // assert(my_thing.operator->() == copy.operator->());
   // ```
   Wrapped(const Wrapped<T> &src) {
+    assert(src.ha != nullptr);
     src.ha->count++;
     ha = src.ha;
   }
 
   // ```
-  // Wrapped<Thing> my_thing = Wrapped<Thing>::make(27); -> count = 1
-  // Single<Thing> copy = my_thing; -> count = 2
-  // assert(my_thing.operator->() == copy.operator->()) -> true
+  // Wrapped<Thing> my_thing = Wrapped<Thing>::make(27); // -> count = 1
+  // Wrapped<Thing> copy = my_thing; // -> count = 2
+  // assert(my_thing.operator->() == copy.operator->());
   // ```
   Wrapped<T> &operator=(const Wrapped<T> &rhs) {
+    assert(rhs.ha != nullptr);
     rhs.ha->count++;
     point_away();
     ha = rhs.ha;
@@ -78,20 +82,33 @@ public:
   }
 
   // ```
-  // Wrapped<int> my_int = Wrapped<Thing>::make(27);
-  // cout << *my_thing << "\n"; -> 27
+  // Wrapped<Thing> my_thing = Wrapped<Thing>::make(27);
+  // Wrapped<Thing> copy = my_thing;
+  // assert(my_thing == copy);
   // ```
-  T operator*() { return *ha; }
+  bool operator==(const Wrapped<T> &o) const { return ha == o.ha; }
+
+  // ```
+  // Wrapped<int> my_int = Wrapped<Thing>::make(27);
+  // cout << *my_thing << "\n"; // -> 27
+  // ```
+  T operator*() {
+    assert(ha != nullptr);
+    return *(T *)ha;
+  }
 
   // ```
   // Wrapped<Thing> my_thing = Wrapped<Thing>::make(27);
-  // cout << my_thing->get_number() << "\n"; -> 27
+  // cout << my_thing->get_number() << "\n"; // -> 27
   // ```
-  T *operator->() { return ha; }
+  T *operator->() {
+    assert(ha != nullptr);
+    return (T *)ha;
+  }
 
   // ```
   // Wrapped<T> my_thing = Wrapped<Thing>::make(27);
-  // assert(my_thing.operator->() == nullptr) -> true
+  // assert(my_thing.operator->() == nullptr);
   // ```
   template <typename... Args> static Wrapped<T> make(Args... args) {
     return Wrapped(args...);

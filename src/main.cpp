@@ -34,9 +34,26 @@ int main() {
   std::cout << "Benchmarking..." << std::endl;
 
   /* BENCHMARK */
-  sb.test(copy_destruction<Single>, sl, 27);
-  db.test(copy_destruction<Double>, dl, 27);
-  wb.test(copy_destruction<Wrapped>, wl, 27);
+
+  // copy destruction
+  std::cout << "\n~~~\nStarting copy destruction tests..." << std::endl;
+  sb.test(copy_destruction<Single>, sl);
+  std::cout << "\tFinished single\n";
+  db.test(copy_destruction<Double>, dl);
+  std::cout << "\tFinished double\n";
+  wb.test(copy_destruction<Wrapped>, wl);
+  std::cout << "\tFinished wrapped\n";
+  std::cout << "Finished copy destruction tests\n~~~\n" << std::endl;
+
+  // pointer dereferences
+  std::cout << "\n~~~\nStarting basic access tests..." << std::endl;
+  sb.test(basic_access<Single>, sl);
+  std::cout << "\tFinished single\n";
+  db.test(basic_access<Double>, dl);
+  std::cout << "\tFinished double\n";
+  wb.test(basic_access<Wrapped>, wl);
+  std::cout << "\tFinished wrapped\n";
+  std::cout << "Finished basic access tests\n~~~\n" << std::endl;
 
   // done
   return 0;

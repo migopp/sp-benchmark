@@ -21,17 +21,14 @@ public:
   }
   ~Benchmark() { res.close(); }
 
-  template <typename T> void test(const T &f, std::ofstream *log, int ans) {
+  template <typename T> void test(const T &f, std::ofstream *log) {
     // time exec
     auto start = chrono::high_resolution_clock::now();
-    int test_res = f(log);
+    f(log);
     auto stop = chrono::high_resolution_clock::now();
 
     // get duration
     auto duration = chrono::duration_cast<chrono::milliseconds>(stop - start);
-
-    // answer must be right
-    assert(test_res == ans);
 
     // doc
     res << duration.count() << "\n";

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cassert>
 #include <cstdlib>
 #include <iostream>
 
@@ -21,8 +22,10 @@ private:
     //                we won't use atomic reference counting.
     uint32_t count;
 
-    IS() : count(0) { ptr = nullptr; }
-    IS(T *p) : count(p == nullptr ? 0 : 1) { ptr = p; }
+    IS() : count(1) { ptr = new T(); }
+    template <typename... Args> IS(Args... args) : count(1) {
+      ptr = new T(args...);
+    }
   };
 
   IS *is;
@@ -31,32 +34,34 @@ private:
   // it can point to a new resource
   void point_away() {
     if (--(is->count) == 0) {
-      if (is->ptr != nullptr)
-        delete is->ptr; // free resource if we need to
-      delete is;        // nothing else will use this counter
+      delete is->ptr; // free resource
+      delete is;      // nothing else will use this counter
     }
   }
 
   // This is strange to have as public...
-  template <typename... Args> Double(Args... args) {
-    is = new IS();
-    is->count = 1;
-    is->ptr = new T(args...);
-  }
+  template <typename... Args> Double(Args... args) { is = new IS(args...); }
 
 public:
-  // DO NOT CALL THIS
-  Double() {
-    std::cerr << "DOUBLE DEFAULT CONSTRUCTOR CALLED" << std::endl;
-    exit(1);
-  }
+  // Calls default constructor for T. 1, 2 are equivalent.
+  //
+  // 1:
+  // ```
+  // Double<Thing> my_thing{};
+  // ```
+  //
+  // 2:
+  // ```
+  // Double<Thing> my_thing = Double<Thing>::make();
+  // ```
+  Double() { is = new IS(); }
 
   ~Double() { point_away(); }
 
   // ```
-  // Double<Thing> my_thing = Double<Thing>::make(27); -> count = 1
-  // Double<Thing> copy{my_thing}; -> count = 2
-  // assert(my_thing.operator->() == copy.operator->()) -> true
+  // Double<Thing> my_thing = Double<Thing>::make(27); // -> count = 1
+  // Double<Thing> copy{my_thing}; // -> count = 2
+  // assert(my_thing.operator->() == copy.operator->());
   // ```
   Double(const Double<T> &src) {
     src.is->count++;
@@ -64,31 +69,46 @@ public:
   }
 
   // ```
-  // Double<Thing> my_thing = Double<Thing>::make(27); -> count = 1
-  // Double<Thing> copy = my_thing; -> count = 2
-  // assert(my_thing.operator->() == copy.operator->()) -> true
+  // Double<Thing> my_thing = Double<Thing>::make(27); // -> count = 1
+  // Double<Thing> copy = my_thing; // -> count = 2
+  // assert(my_thing.operator->() == copy.operator->());
   // ```
   Double<T> &operator=(const Double<T> &rhs) {
     rhs.is->count++;
     point_away();
-    is = rhs.is();
+    is = rhs.is;
+
+    return *this;
   }
 
   // ```
-  // Double<int> my_int = Double<Thing>::make(27);
-  // cout << *my_thing << "\n"; -> 27
+  // Double<Thing> my_thing = Double<Thing>::make(27);
+  // Double<Thing> copy = my_thing;
+  // assert(my_thing == copy);
   // ```
-  T operator*() { return *is->ptr; }
+  bool operator==(const Double<T> &o) const { return is->ptr == o.is->ptr; }
+
+  // ```
+  // Double<int> my_int = Double<Thing>::make(27);
+  // cout << *my_thing << "\n"; // -> 27
+  // ```
+  T operator*() {
+    assert(is->ptr != nullptr);
+    return *is->ptr;
+  }
 
   // ```
   // Double<Thing> my_thing = Double<Thing>::make(27);
-  // cout << my_thing->get_number() << "\n"; -> 27
+  // cout << my_thing->get_number() << "\n"; // -> 27
   // ```
-  T *operator->() { return is->ptr; }
+  T *operator->() {
+    assert(is->ptr != nullptr);
+    return is->ptr;
+  }
 
   // ```
   // Double<T> my_thing = Double<Thing>::make(27);
-  // assert(my_thing.operator->() == nullptr) -> true
+  // assert(my_thing.operator->() == nullptr);
   // ```
   template <typename... Args> static Double<T> make(Args... args) {
     return Double(args...);
