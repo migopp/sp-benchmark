@@ -32,7 +32,6 @@ private:
   // Moves strong RC away from current resource, for destruction or so that
   // it can point to a new resource
   void point_away() {
-    assert(ha != nullptr);
     if (--(ha->count) == 0)
       delete ha; // nothing will use this counter
   }
@@ -62,7 +61,6 @@ public:
   // assert(my_thing.operator->() == copy.operator->());
   // ```
   Wrapped(const Wrapped<T> &src) {
-    assert(src.ha != nullptr);
     src.ha->count++;
     ha = src.ha;
   }
@@ -73,7 +71,6 @@ public:
   // assert(my_thing.operator->() == copy.operator->());
   // ```
   Wrapped<T> &operator=(const Wrapped<T> &rhs) {
-    assert(rhs.ha != nullptr);
     rhs.ha->count++;
     point_away();
     ha = rhs.ha;
@@ -92,19 +89,13 @@ public:
   // Wrapped<int> my_int = Wrapped<Thing>::make(27);
   // cout << *my_thing << "\n"; // -> 27
   // ```
-  T operator*() {
-    assert(ha != nullptr);
-    return *(T *)ha;
-  }
+  T operator*() { return *(T *)ha; }
 
   // ```
   // Wrapped<Thing> my_thing = Wrapped<Thing>::make(27);
   // cout << my_thing->get_number() << "\n"; // -> 27
   // ```
-  T *operator->() {
-    assert(ha != nullptr);
-    return (T *)ha;
-  }
+  T *operator->() { return (T *)ha; }
 
   // ```
   // Wrapped<T> my_thing = Wrapped<Thing>::make(27);

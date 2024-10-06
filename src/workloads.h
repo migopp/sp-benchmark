@@ -34,7 +34,7 @@ void copy_destruction(std::ofstream *log) {
   } // Thing::~Thing()
 };
 
-// Basic Access
+// BASIC ACCESS
 //
 // Also not a realistic workload, but will give us a feel for how
 // expensive these are in aggregate. The compiler can probably do

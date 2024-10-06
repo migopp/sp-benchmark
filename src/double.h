@@ -92,19 +92,13 @@ public:
   // Double<int> my_int = Double<Thing>::make(27);
   // cout << *my_thing << "\n"; // -> 27
   // ```
-  T operator*() {
-    assert(is->ptr != nullptr);
-    return *is->ptr;
-  }
+  T operator*() { return *is->ptr; }
 
   // ```
   // Double<Thing> my_thing = Double<Thing>::make(27);
   // cout << my_thing->get_number() << "\n"; // -> 27
   // ```
-  T *operator->() {
-    assert(is->ptr != nullptr);
-    return is->ptr;
-  }
+  T *operator->() { return is->ptr; }
 
   // ```
   // Double<T> my_thing = Double<Thing>::make(27);

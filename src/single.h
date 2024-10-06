@@ -60,7 +60,6 @@ public:
   // assert(my_thing.operator->() == copy.operator->());
   // ```
   Single(const Single<T> &src) {
-    assert(src.ptr != nullptr);
     (*src.count)++;
     count = src.count;
     ptr = src.ptr;
@@ -72,7 +71,6 @@ public:
   // assert(my_thing.operator->() == copy.operator->());
   // ```
   Single<T> &operator=(const Single<T> &rhs) {
-    assert(rhs.ptr != nullptr);
     (*rhs.count)++;
     point_away();
     count = rhs.count;
@@ -92,19 +90,13 @@ public:
   // Single<int> my_int = Single<Thing>::make(27);
   // cout << *my_thing << "\n"; // -> 27
   // ```
-  T operator*() {
-    assert(ptr != nullptr);
-    return *ptr;
-  }
+  T operator*() { return *ptr; }
 
   // ```
   // Single<Thing> my_thing = Single<Thing>::make(27);
   // cout << my_thing->get_number() << "\n"; // -> 27
   // ```
-  T *operator->() {
-    assert(ptr != nullptr);
-    return ptr;
-  }
+  T *operator->() { return ptr; }
 
   // ```
   // Single<T> my_thing = Single<Thing>::make(27);
