@@ -1,3 +1,3 @@
-# Strong Pointer Benchmarking
+# sp-benchmark
 
-This is an experiment to test the performance differences between single and double-indirection approaches to creating smart pointers.
+An experiment to test the performance differences between single and double-indirection approaches to creating smart pointers.
